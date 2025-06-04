@@ -636,20 +636,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ffd07bf7dd4c80845b6ed04c44fc03b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridWidth: 10
-  gridHeight: 10
-  maxTurns: 50
-  initialAntsPerPlayer: 4
-  initialFoodCount: 8
+  gridWidth: 20
+  gridHeight: 15
+  initialAntsPerPlayer: 10
+  initialFoodCount: 6
   antPrefab: {fileID: 3973485976715963189, guid: 2df7c72938b4a6a49a07ad331cbb28dc, type: 3}
   foodPrefab: {fileID: 1936809627674288231, guid: f955eba6f43a6214a9b4a9b0864adfc0, type: 3}
   tilePrefab: {fileID: 889416365048653615, guid: 07e2ff7edfa6b2c4eb2fa7e8f572a407, type: 3}
+  anthillPrefab: {fileID: 8945263109682789585, guid: 8a71124d8c0851d4781de80d90c4e5e9, type: 3}
   player1ScoreText: {fileID: 814730250}
   player2ScoreText: {fileID: 246899371}
   turnIndicatorText: {fileID: 672591120}
   gameStatusText: {fileID: 1408764135}
   restartButton: {fileID: 1271274112}
-  endTurnButton: {fileID: 1556891984}
   player1Color: {r: 1, g: 0, b: 0, a: 1}
   player2Color: {r: 0, g: 0, b: 1, a: 1}
   tileColor: {r: 1, g: 1, b: 1, a: 1}
