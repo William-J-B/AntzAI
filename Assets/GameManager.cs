@@ -26,8 +26,8 @@ public class GameManager : MonoBehaviour
     public Button restartButton;
 
     [Header("Colors")]
-    public Color player1Color = Color.red;
-    public Color player2Color = Color.blue;
+    public Color player1Color = Color.black;
+    public Color player2Color = Color.red;
     public Color tileColor = Color.white;
     public Color selectedTileColor = Color.yellow;
 
@@ -109,23 +109,41 @@ public class GameManager : MonoBehaviour
 
     void SpawnAnthills()
     {
-        // Player 1 anthill (left)
-        int p1X = 0;
-        int p1Y = 7;
-        GameObject anthill1 = Instantiate(anthillPrefab, new Vector3(p1X, p1Y, -1), Quaternion.identity);
-        player1Anthill = anthill1.GetComponent<Anthill>();
-        if (player1Anthill == null)
-            player1Anthill = anthill1.AddComponent<Anthill>();
-        player1Anthill.Initialize(p1X, p1Y, 1, this);
+        // Player 1 anthill (left, occupies 6 tiles)
+        List<Vector2Int> p1Tiles = new List<Vector2Int>
+        {
+            new Vector2Int(0, 6), new Vector2Int(0, 7), new Vector2Int(0, 8),
+            new Vector2Int(1, 6), new Vector2Int(1, 7), new Vector2Int(1, 8)
+        };
+        foreach (var pos in p1Tiles)
+        {
+            GameObject anthillObj = Instantiate(anthillPrefab, new Vector3(pos.x, pos.y, -1), Quaternion.identity);
+            Anthill anthill = anthillObj.GetComponent<Anthill>();
+            if (anthill == null)
+                anthill = anthillObj.AddComponent<Anthill>();
+            anthill.Initialize(pos.x, pos.y, 1, this);
+            // Store one reference for player1Anthill (mainly for scoring, etc.)
+            if (player1Anthill == null)
+                player1Anthill = anthill;
+        }
 
-        // Player 2 anthill (right)
-        int p2X = 19;
-        int p2Y = 7;
-        GameObject anthill2 = Instantiate(anthillPrefab, new Vector3(p2X, p2Y, -1), Quaternion.identity);
-        player2Anthill = anthill2.GetComponent<Anthill>();
-        if (player2Anthill == null)
-            player2Anthill = anthill2.AddComponent<Anthill>();
-        player2Anthill.Initialize(p2X, p2Y, 2, this);
+        // Player 2 anthill (right, occupies 6 tiles)
+        List<Vector2Int> p2Tiles = new List<Vector2Int>
+        {
+            new Vector2Int(18, 6), new Vector2Int(18, 7), new Vector2Int(18, 8),
+            new Vector2Int(19, 6), new Vector2Int(19, 7), new Vector2Int(19, 8)
+        };
+        foreach (var pos in p2Tiles)
+        {
+            GameObject anthillObj = Instantiate(anthillPrefab, new Vector3(pos.x, pos.y, -1), Quaternion.identity);
+            Anthill anthill = anthillObj.GetComponent<Anthill>();
+            if (anthill == null)
+                anthill = anthillObj.AddComponent<Anthill>();
+            anthill.Initialize(pos.x, pos.y, 2, this);
+            // Store one reference for player2Anthill (mainly for scoring, etc.)
+            if (player2Anthill == null)
+                player2Anthill = anthill;
+        }
     }
 
     void SpawnAnts()
@@ -248,10 +266,10 @@ public class GameManager : MonoBehaviour
 
     void SelectAnt(Ant ant)
     {
-        // Deselect previous
+        // Deselect previous (unhighlight previous position)
         if (selectedAnt != null)
         {
-            HighlightTile(selectedAnt.gridX, selectedAnt.gridY, false);
+            HighlightTile(selectedPosition.x, selectedPosition.y, false);
         }
 
         selectedAnt = ant;
@@ -372,7 +390,7 @@ public class GameManager : MonoBehaviour
     {
         if (selectedAnt != null)
         {
-            HighlightTile(selectedAnt.gridX, selectedAnt.gridY, false);
+            HighlightTile(selectedPosition.x, selectedPosition.y, false);
             selectedAnt = null;
         }
     }
@@ -502,9 +520,9 @@ public class GameManager : MonoBehaviour
 
     public Anthill GetAnthillAt(int x, int y)
     {
-        if (player1Anthill != null && player1Anthill.gridX == x && player1Anthill.gridY == y)
+        if (player1Anthill != null && (x == 0 || x == 1) && (y > 5 && y < 9))
             return player1Anthill;
-        if (player2Anthill != null && player2Anthill.gridX == x && player2Anthill.gridY == y)
+        if (player2Anthill != null && (x == 18 || x == 19) && (y > 5 && y < 9))
             return player2Anthill;
         return null;
     }

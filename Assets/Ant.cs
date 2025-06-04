@@ -14,6 +14,9 @@ public class Ant : MonoBehaviour
     public int health { get; private set; }
     public bool hasActed { get; set; }
     public bool isCarryingFood { get; private set; }
+    public Sprite blackSprite;
+    public Sprite redSprite;
+
 
     // Components
     private SpriteRenderer spriteRenderer;
@@ -45,7 +48,13 @@ public class Ant : MonoBehaviour
         // Create a simple colored square sprite
         if (spriteRenderer != null)
         {
-            spriteRenderer.color = gameManager.GetPlayerColor(playerId);
+            if (playerId == 1)
+            {
+                spriteRenderer.sprite = blackSprite;
+            } else
+            {
+                spriteRenderer.sprite = redSprite;
+            }
 
             // Create a simple square texture if none exists
             if (spriteRenderer.sprite == null)
@@ -63,7 +72,7 @@ public class Ant : MonoBehaviour
 
         // Add a simple health indicator (scale based on health)
         float healthRatio = (float)health / maxHealth;
-        float baseScale = 0.8f + 0.4f * healthRatio;
+        float baseScale = 0.2f + 0.1f * healthRatio;
 
         // Make carrying ants slightly larger to show they have food
         if (isCarryingFood)
