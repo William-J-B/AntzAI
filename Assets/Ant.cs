@@ -13,6 +13,7 @@ public class Ant : MonoBehaviour
     public int playerId { get; private set; }
     public int health { get; private set; }
     public bool hasActed { get; set; }
+    public bool isCarryingFood { get; private set; }
 
     // Components
     private SpriteRenderer spriteRenderer;
@@ -32,6 +33,7 @@ public class Ant : MonoBehaviour
         playerId = player;
         health = maxHealth;
         hasActed = false;
+        isCarryingFood = false;
         gameManager = manager;
 
         // Set visual appearance
@@ -61,7 +63,13 @@ public class Ant : MonoBehaviour
 
         // Add a simple health indicator (scale based on health)
         float healthRatio = (float)health / maxHealth;
-        transform.localScale = Vector3.one * (0.8f + 0.4f * healthRatio);
+        float baseScale = 0.8f + 0.4f * healthRatio;
+
+        // Make carrying ants slightly larger to show they have food
+        if (isCarryingFood)
+            baseScale *= 1.2f;
+
+        transform.localScale = Vector3.one * baseScale;
     }
 
     public void MoveTo(int newX, int newY)
@@ -75,6 +83,25 @@ public class Ant : MonoBehaviour
     {
         health -= damage;
         health = Mathf.Max(0, health);
+
+        // Drop food when damaged
+        if (isCarryingFood)
+        {
+            DropFood();
+        }
+
+        UpdateVisual();
+    }
+
+    public void PickupFood()
+    {
+        isCarryingFood = true;
+        UpdateVisual();
+    }
+
+    public void DropFood()
+    {
+        isCarryingFood = false;
         UpdateVisual();
     }
 }

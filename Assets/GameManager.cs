@@ -7,16 +7,16 @@ using System.Linq;
 public class GameManager : MonoBehaviour
 {
     [Header("Game Settings")]
-    public int gridWidth = 10;
-    public int gridHeight = 10;
-    public int maxTurns = 50;
-    public int initialAntsPerPlayer = 4;
-    public int initialFoodCount = 8;
+    public int gridWidth = 20;
+    public int gridHeight = 15;
+    public int initialAntsPerPlayer = 10;
+    public int initialFoodCount = 6;
 
     [Header("Prefabs")]
     public GameObject antPrefab;
     public GameObject foodPrefab;
     public GameObject tilePrefab;
+    public GameObject anthillPrefab;
 
     [Header("UI")]
     public Text player1ScoreText;
@@ -24,7 +24,6 @@ public class GameManager : MonoBehaviour
     public Text turnIndicatorText;
     public Text gameStatusText;
     public Button restartButton;
-    public Button endTurnButton;
 
     [Header("Colors")]
     public Color player1Color = Color.red;
@@ -43,6 +42,8 @@ public class GameManager : MonoBehaviour
     private List<Ant> player1Ants = new List<Ant>();
     private List<Ant> player2Ants = new List<Ant>();
     private List<Food> foodItems = new List<Food>();
+    private Anthill player1Anthill;
+    private Anthill player2Anthill;
 
     // Selection
     private Ant selectedAnt;
@@ -77,6 +78,7 @@ public class GameManager : MonoBehaviour
     void InitializeGame()
     {
         CreateGrid();
+        SpawnAnthills();
         SpawnAnts();
         SpawnFood();
         UpdateUI();
@@ -84,8 +86,6 @@ public class GameManager : MonoBehaviour
         // Setup UI buttons
         if (restartButton != null)
             restartButton.onClick.AddListener(RestartGame);
-        if (endTurnButton != null)
-            endTurnButton.onClick.AddListener(EndTurn);
     }
 
     void CreateGrid()
@@ -107,32 +107,58 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    void SpawnAnthills()
+    {
+        // Player 1 anthill (left)
+        int p1X = 0;
+        int p1Y = 7;
+        GameObject anthill1 = Instantiate(anthillPrefab, new Vector3(p1X, p1Y, -1), Quaternion.identity);
+        player1Anthill = anthill1.GetComponent<Anthill>();
+        if (player1Anthill == null)
+            player1Anthill = anthill1.AddComponent<Anthill>();
+        player1Anthill.Initialize(p1X, p1Y, 1, this);
+
+        // Player 2 anthill (right)
+        int p2X = 19;
+        int p2Y = 7;
+        GameObject anthill2 = Instantiate(anthillPrefab, new Vector3(p2X, p2Y, -1), Quaternion.identity);
+        player2Anthill = anthill2.GetComponent<Anthill>();
+        if (player2Anthill == null)
+            player2Anthill = anthill2.AddComponent<Anthill>();
+        player2Anthill.Initialize(p2X, p2Y, 2, this);
+    }
+
     void SpawnAnts()
     {
-        // Spawn Player 1 ants (bottom side)
-        for (int i = 0; i < initialAntsPerPlayer; i++)
+        // Spawn Player 1 ants (left side)
+        if (initialAntsPerPlayer == 10)
         {
-            int x = Random.Range(0, gridWidth);
-            int y = Random.Range(0, 2);
-            while (GetAntAt(x, y) != null)
-            {
-                x = Random.Range(0, gridWidth);
-                y = Random.Range(0, 2);
-            }
-            SpawnAnt(x, y, 1);
+            SpawnAnt(1, 9, 1);
+            SpawnAnt(1, 5, 1);
+            SpawnAnt(2, 11, 1);
+            SpawnAnt(2, 7, 1);
+            SpawnAnt(2, 3, 1);
+            SpawnAnt(3, 10, 1);
+            SpawnAnt(3, 4, 1);
+            SpawnAnt(4, 6, 1);
+            SpawnAnt(4, 8, 1);
+            SpawnAnt(5, 7, 1);
         }
 
-        // Spawn Player 2 ants (top side)
-        for (int i = 0; i < initialAntsPerPlayer; i++)
+
+        // Spawn Player 2 ants (right side)
+        if (initialAntsPerPlayer == 10)
         {
-            int x = Random.Range(0, gridWidth);
-            int y = Random.Range(gridHeight - 2, gridHeight);
-            while (GetAntAt(x, y) != null)
-            {
-                x = Random.Range(0, gridWidth);
-                y = Random.Range(gridHeight - 2, gridHeight);
-            }
-            SpawnAnt(x, y, 2);
+            SpawnAnt(18, 9, 2);
+            SpawnAnt(18, 5, 2);
+            SpawnAnt(17, 11, 2);
+            SpawnAnt(17, 7, 2);
+            SpawnAnt(17, 3, 2);
+            SpawnAnt(16, 10, 2);
+            SpawnAnt(16, 4, 2);
+            SpawnAnt(15, 6, 2);
+            SpawnAnt(15, 8, 2);
+            SpawnAnt(14, 7, 2);
         }
     }
 
@@ -153,23 +179,26 @@ public class GameManager : MonoBehaviour
 
     void SpawnFood()
     {
-        for (int i = 0; i < initialFoodCount; i++)
+        if (initialFoodCount == 6)
         {
-            int x, y;
-            do
-            {
-                x = Random.Range(0, gridWidth);
-                y = Random.Range(2, gridHeight - 2);
-            } while (GetAntAt(x, y) != null || GetFoodAt(x, y) != null);
-
-            GameObject foodObj = Instantiate(foodPrefab, new Vector3(x, y, -1), Quaternion.identity);
-            Food food = foodObj.GetComponent<Food>();
-            if (food == null)
-                food = foodObj.AddComponent<Food>();
-
-            food.Initialize(x, y);
-            foodItems.Add(food);
+            CreateFood(8, 5);
+            CreateFood(8, 9);
+            CreateFood(9, 7);
+            CreateFood(10, 7);
+            CreateFood(11, 5);
+            CreateFood(11, 9);
         }
+    }
+
+    void CreateFood(int x, int y)
+    {
+        GameObject foodObj = Instantiate(foodPrefab, new Vector3(x, y, -1), Quaternion.identity);
+        Food food = foodObj.GetComponent<Food>();
+        if (food == null)
+            food = foodObj.AddComponent<Food>();
+
+        food.Initialize(x, y);
+        foodItems.Add(food);
     }
 
     void Update()
@@ -269,12 +298,19 @@ public class GameManager : MonoBehaviour
 
         // Check for food collection
         Food food = GetFoodAt(targetX, targetY);
-        if (food != null)
+        if (food != null && !ant.isCarryingFood)
         {
-            CollectFood(ant, food);
+            PickupFood(ant, food);
+        }
+
+        Anthill anthill = GetAnthillAt(targetX, targetY);
+        if (anthill != null && anthill.playerId == ant.playerId && ant.isCarryingFood)
+        {
+            DeliverFood(ant, anthill);
         }
 
         ant.hasActed = true;
+        EndTurn();
         DeselectAnt();
     }
 
@@ -294,15 +330,25 @@ public class GameManager : MonoBehaviour
         DeselectAnt();
     }
 
-    void CollectFood(Ant ant, Food food)
+    void PickupFood(Ant ant, Food food)
     {
+        ant.PickupFood();
+        foodItems.Remove(food);
+        Destroy(food.gameObject);
+
+        // Don't score yet - must deliver to anthill first!
+        UpdateUI();
+    }
+
+    void DeliverFood(Ant ant, Anthill anthill)
+    {
+        ant.DropFood();
+
+        // Now we score!
         if (ant.playerId == 1)
             player1Score++;
         else
             player2Score++;
-
-        foodItems.Remove(food);
-        Destroy(food.gameObject);
 
         UpdateUI();
         CheckGameEnd();
@@ -375,13 +421,6 @@ public class GameManager : MonoBehaviour
             winner = player1Score > player2Score ? "Player 1" :
                      player2Score > player1Score ? "Player 2" : "Tie";
         }
-        // Check if max turns reached
-        else if (currentTurn > maxTurns)
-        {
-            gameEnded = true;
-            winner = player1Score > player2Score ? "Player 1" :
-                     player2Score > player1Score ? "Player 2" : "Tie";
-        }
         // Check if all ants of one player are dead
         else if (player1Ants.Count == 0)
         {
@@ -423,6 +462,8 @@ public class GameManager : MonoBehaviour
             if (ant != null) Destroy(ant.gameObject);
         foreach (Food food in foodItems.ToList())
             if (food != null) Destroy(food.gameObject);
+        if (player1Anthill != null) Destroy(player1Anthill.gameObject);
+        if (player2Anthill != null) Destroy(player2Anthill.gameObject);
 
         player1Ants.Clear();
         player2Ants.Clear();
@@ -436,6 +477,7 @@ public class GameManager : MonoBehaviour
         selectedAnt = null;
 
         // Reinitialize
+        SpawnAnthills();
         SpawnAnts();
         SpawnFood();
         UpdateUI();
@@ -456,6 +498,15 @@ public class GameManager : MonoBehaviour
     public Food GetFoodAt(int x, int y)
     {
         return foodItems.FirstOrDefault(f => f.gridX == x && f.gridY == y);
+    }
+
+    public Anthill GetAnthillAt(int x, int y)
+    {
+        if (player1Anthill != null && player1Anthill.gridX == x && player1Anthill.gridY == y)
+            return player1Anthill;
+        if (player2Anthill != null && player2Anthill.gridX == x && player2Anthill.gridY == y)
+            return player2Anthill;
+        return null;
     }
 
     public int GetCurrentPlayerId()
