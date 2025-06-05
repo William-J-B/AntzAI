@@ -36,6 +36,7 @@ public class GameManager : MonoBehaviour
     private int currentTurn = 1;
     private int player1Score = 0;
     private int player2Score = 0;
+    private bool isProcessingAI = false;
 
     // Grid and Objects
     private GridTile[,] grid;
@@ -223,7 +224,134 @@ public class GameManager : MonoBehaviour
     {
         if (currentState == GameState.GameOver) return;
 
-        HandleInput();
+        if (currentState == GameState.Player2Turn && !isProcessingAI)
+        {
+            isProcessingAI = true;
+            StartCoroutine(ProcessAIPlayer2Turn());
+        }
+        else if (currentState == GameState.Player1Turn)
+        {
+            HandleInput();
+        }
+    }
+
+    private System.Collections.IEnumerator ProcessAIPlayer2Turn()
+    {
+        // Simple strategy:
+        // 1. If an ant can attack, attack the nearest enemy ant.
+        // 2. If carrying food, move toward own anthill.
+        // 3. If not carrying food, move toward nearest food.
+        // 4. Otherwise, move toward the center.
+
+        foreach (Ant ant in player2Ants.ToList())
+        {
+            if (ant == null || ant.hasActed || ant.health <= 0) continue;
+
+            // 1. Try to attack if possible
+            bool attacked = false;
+            foreach (Vector2Int dir in new[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right })
+            {
+                int tx = ant.gridX + dir.x;
+                int ty = ant.gridY + dir.y;
+                Ant enemy = GetAntAt(tx, ty);
+                if (enemy != null && enemy.playerId == 1 && CanAttack(ant, tx, ty))
+                {
+                    AttackAnt(ant, tx, ty);
+                    attacked = true;
+                    yield return new WaitForSeconds(0.1f);
+                    break;
+                }
+            }
+            if (attacked) continue;
+
+            // 2. If carrying food, move toward own anthill
+            if (ant.isCarryingFood)
+            {
+                Vector2Int target = GetClosestAnthillTile(ant.gridX, ant.gridY, 2);
+                Vector2Int move = GetNextStepToward(ant, target);
+                if (CanMoveAnt(ant, move.x, move.y))
+                {
+                    MoveAnt(ant, move.x, move.y);
+                    yield return new WaitForSeconds(0.1f);
+                    continue;
+                }
+            }
+            else
+            {
+                // 3. Move toward nearest food
+                Food nearestFood = GetClosestFood(ant.gridX, ant.gridY);
+                if (nearestFood != null)
+                {
+                    Vector2Int move = GetNextStepToward(ant, new Vector2Int(nearestFood.gridX, nearestFood.gridY));
+                    if (CanMoveAnt(ant, move.x, move.y))
+                    {
+                        MoveAnt(ant, move.x, move.y);
+                        yield return new WaitForSeconds(0.1f);
+                        continue;
+                    }
+                }
+            }
+
+            // 4. Otherwise, move toward the center
+            Vector2Int center = new Vector2Int(gridWidth / 2, gridHeight / 2);
+            Vector2Int fallbackMove = GetNextStepToward(ant, center);
+            if (CanMoveAnt(ant, fallbackMove.x, fallbackMove.y))
+            {
+                MoveAnt(ant, fallbackMove.x, fallbackMove.y);
+                yield return new WaitForSeconds(0.1f);
+            }
+        }
+
+        // End AI turn
+        isProcessingAI = false;
+        EndTurn();
+    }
+
+    private Food GetClosestFood(int x, int y)
+    {
+        Food closest = null;
+        float minDist = float.MaxValue;
+        foreach (var food in foodItems)
+        {
+            float dist = Mathf.Abs(food.gridX - x) + Mathf.Abs(food.gridY - y);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                closest = food;
+            }
+        }
+        return closest;
+    }
+
+    private Vector2Int GetClosestAnthillTile(int x, int y, int playerId)
+    {
+        List<Vector2Int> tiles = playerId == 2
+            ? new List<Vector2Int> { new Vector2Int(18, 6), new Vector2Int(18, 7), new Vector2Int(18, 8), new Vector2Int(19, 6), new Vector2Int(19, 7), new Vector2Int(19, 8) }
+            : new List<Vector2Int> { new Vector2Int(0, 6), new Vector2Int(0, 7), new Vector2Int(0, 8), new Vector2Int(1, 6), new Vector2Int(1, 7), new Vector2Int(1, 8) };
+        Vector2Int closest = tiles[0];
+        float minDist = float.MaxValue;
+        foreach (var tile in tiles)
+        {
+            float dist = Mathf.Abs(tile.x - x) + Mathf.Abs(tile.y - y);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                closest = tile;
+            }
+        }
+        return closest;
+    }
+
+    private Vector2Int GetNextStepToward(Ant ant, Vector2Int target)
+    {
+        int dx = target.x - ant.gridX;
+        int dy = target.y - ant.gridY;
+        int nx = ant.gridX, ny = ant.gridY;
+        if (Mathf.Abs(dx) > Mathf.Abs(dy))
+            nx += dx > 0 ? 1 : -1;
+        else if (dy != 0)
+            ny += dy > 0 ? 1 : -1;
+        return new Vector2Int(nx, ny);
     }
 
     void HandleInput()
@@ -432,15 +560,8 @@ public class GameManager : MonoBehaviour
         bool gameEnded = false;
         string winner = "";
 
-        // Check if all food collected
-        if (foodItems.Count == 0)
-        {
-            gameEnded = true;
-            winner = player1Score > player2Score ? "Player 1" :
-                     player2Score > player1Score ? "Player 2" : "Tie";
-        }
         // Check if all ants of one player are dead
-        else if (player1Ants.Count == 0)
+        if (player1Ants.Count == 0)
         {
             gameEnded = true;
             winner = "Player 2";
