@@ -237,18 +237,14 @@ public class GameManager : MonoBehaviour
 
     private System.Collections.IEnumerator ProcessAIPlayer2Turn()
     {
-        // Simple strategy:
-        // 1. If an ant can attack, attack the nearest enemy ant.
-        // 2. If carrying food, move toward own anthill.
-        // 3. If not carrying food, move toward nearest food.
-        // 4. Otherwise, move toward the center.
+        // AI: Only move one ant per turn, then end turn immediately
+        Ant chosenAnt = null;
+        Vector2Int moveTarget = Vector2Int.zero;
 
-        foreach (Ant ant in player2Ants.ToList())
+        // 1. Try to find an ant that can attack
+        foreach (Ant ant in player2Ants)
         {
-            if (ant == null || ant.hasActed || ant.health <= 0) continue;
-
-            // 1. Try to attack if possible
-            bool attacked = false;
+            if (ant == null || ant.hasActed) continue;
             foreach (Vector2Int dir in new[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right })
             {
                 int tx = ant.gridX + dir.x;
@@ -256,53 +252,87 @@ public class GameManager : MonoBehaviour
                 Ant enemy = GetAntAt(tx, ty);
                 if (enemy != null && enemy.playerId == 1 && CanAttack(ant, tx, ty))
                 {
-                    AttackAnt(ant, tx, ty);
-                    attacked = true;
-                    yield return new WaitForSeconds(0.1f);
+                    chosenAnt = ant;
+                    moveTarget = new Vector2Int(tx, ty);
                     break;
                 }
             }
-            if (attacked) continue;
+            if (chosenAnt != null) break;
+        }
 
-            // 2. If carrying food, move toward own anthill
-            if (ant.isCarryingFood)
+        // 2. If no attack, try to move toward own anthill if carrying food
+        if (chosenAnt == null)
+        {
+            foreach (Ant ant in player2Ants)
             {
-                Vector2Int target = GetClosestAnthillTile(ant.gridX, ant.gridY, 2);
-                Vector2Int move = GetNextStepToward(ant, target);
-                if (CanMoveAnt(ant, move.x, move.y))
+                if (ant == null || ant.hasActed) continue;
+                if (ant.isCarryingFood)
                 {
-                    MoveAnt(ant, move.x, move.y);
-                    yield return new WaitForSeconds(0.1f);
-                    continue;
-                }
-            }
-            else
-            {
-                // 3. Move toward nearest food
-                Food nearestFood = GetClosestFood(ant.gridX, ant.gridY);
-                if (nearestFood != null)
-                {
-                    Vector2Int move = GetNextStepToward(ant, new Vector2Int(nearestFood.gridX, nearestFood.gridY));
+                    Vector2Int target = GetClosestAnthillTile(ant.gridX, ant.gridY, 2);
+                    Vector2Int move = GetNextStepToward(ant, target);
                     if (CanMoveAnt(ant, move.x, move.y))
                     {
-                        MoveAnt(ant, move.x, move.y);
-                        yield return new WaitForSeconds(0.1f);
-                        continue;
+                        chosenAnt = ant;
+                        moveTarget = move;
+                        break;
                     }
                 }
             }
+        }
 
-            // 4. Otherwise, move toward the center
-            Vector2Int center = new Vector2Int(gridWidth / 2, gridHeight / 2);
-            Vector2Int fallbackMove = GetNextStepToward(ant, center);
-            if (CanMoveAnt(ant, fallbackMove.x, fallbackMove.y))
+        // 3. If not carrying food, move toward nearest food
+        if (chosenAnt == null)
+        {
+            float minDist = float.MaxValue;
+            foreach (Ant ant in player2Ants)
             {
-                MoveAnt(ant, fallbackMove.x, fallbackMove.y);
-                yield return new WaitForSeconds(0.1f);
+                if (ant == null || ant.hasActed) continue;
+                if (!ant.isCarryingFood)
+                {
+                    Food nearestFood = GetClosestFood(ant.gridX, ant.gridY);
+                    if (nearestFood != null)
+                    {
+                        float dist = Mathf.Abs(nearestFood.gridX - ant.gridX) + Mathf.Abs(nearestFood.gridY - ant.gridY);
+                        Vector2Int move = GetNextStepToward(ant, new Vector2Int(nearestFood.gridX, nearestFood.gridY));
+                        if (CanMoveAnt(ant, move.x, move.y) && dist < minDist)
+                        {
+                            chosenAnt = ant;
+                            moveTarget = move;
+                            minDist = dist;
+                        }
+                    }
+                }
             }
         }
 
-        // End AI turn
+        // 4. Otherwise, move toward the center
+        if (chosenAnt == null)
+        {
+            foreach (Ant ant in player2Ants)
+            {
+                if (ant == null || ant.hasActed) continue;
+                Vector2Int center = new Vector2Int(gridWidth / 2, gridHeight / 2);
+                Vector2Int move = GetNextStepToward(ant, center);
+                if (CanMoveAnt(ant, move.x, move.y))
+                {
+                    chosenAnt = ant;
+                    moveTarget = move;
+                    break;
+                }
+            }
+        }
+
+        // 5. Execute the chosen action and end turn immediately after
+        if (chosenAnt != null)
+        {
+            yield return new WaitForSeconds(0.2f);
+            MoveAnt(chosenAnt, moveTarget.x, moveTarget.y);
+            // End turn after the first action
+            isProcessingAI = false;
+            yield break;
+        }
+
+        // If no action was possible, still end turn
         isProcessingAI = false;
         EndTurn();
     }
@@ -380,14 +410,10 @@ public class GameManager : MonoBehaviour
         }
         else if (selectedAnt != null)
         {
-            // Try to move or attack
+            // Try to move
             if (CanMoveAnt(selectedAnt, x, y))
             {
                 MoveAnt(selectedAnt, x, y);
-            }
-            else if (CanAttack(selectedAnt, x, y))
-            {
-                AttackAnt(selectedAnt, x, y);
             }
         }
     }
@@ -417,8 +443,9 @@ public class GameManager : MonoBehaviour
         int dy = Mathf.Abs(targetY - ant.gridY);
         if (dx + dy != 1) return false;
 
-        // Check if occupied
-        if (GetAntAt(targetX, targetY) != null) return false;
+        // Allow moving onto an enemy ant (to kill it)
+        Ant targetAnt = GetAntAt(targetX, targetY);
+        if (targetAnt != null && targetAnt.playerId == ant.playerId) return false;
 
         return true;
     }
@@ -440,6 +467,13 @@ public class GameManager : MonoBehaviour
 
     void MoveAnt(Ant ant, int targetX, int targetY)
     {
+        // If moving onto an enemy ant, kill it
+        Ant targetAnt = GetAntAt(targetX, targetY);
+        if (targetAnt != null && targetAnt.playerId != ant.playerId)
+        {
+            DestroyAnt(targetAnt);
+        }
+
         ant.MoveTo(targetX, targetY);
 
         // Check for food collection
@@ -457,22 +491,6 @@ public class GameManager : MonoBehaviour
 
         ant.hasActed = true;
         EndTurn();
-        DeselectAnt();
-    }
-
-    void AttackAnt(Ant attacker, int targetX, int targetY)
-    {
-        Ant target = GetAntAt(targetX, targetY);
-        if (target != null)
-        {
-            target.TakeDamage(attacker.attackDamage);
-            attacker.hasActed = true;
-
-            if (target.health <= 0)
-            {
-                DestroyAnt(target);
-            }
-        }
         DeselectAnt();
     }
 
